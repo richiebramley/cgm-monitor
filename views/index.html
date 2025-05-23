@@ -28,7 +28,7 @@
   <meta name="msapplication-TileImage" content="/images/mstile-144x144.png">
   <meta name="msapplication-config" content="/browserconfig.xml">
   <meta name="theme-color" content="#333333">
-  <link rel="preload" href="css/ui-lightness/jquery-ui.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="css/ui-darkness/jquery-ui.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <link rel="preload" href="css/jquery.tooltips.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <link rel="preload" href="css/main.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <link rel="preload" href="css/drawer.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
@@ -45,7 +45,7 @@
       width: 100%;
       margin: 0;
       padding: 0;
-      background: #fefbea;
+      background: #fff;
       z-index: 1000;
     }
 
@@ -109,7 +109,7 @@
   <div id="centerMessagePanel">
     <div id="loadingMessage">
       <p><img src="images/launch.png"></p>
-      <p id="loadingMessageText">Loading the client</p>
+      <p id="loadingMessageText">Loading your glucose</p>
       <div class="spinner">
         <div class="bounce1"></div>
         <div class="bounce2"></div>
@@ -148,12 +148,9 @@
 
       <ul class="focus-range">
         <li data-hours="1" class="translate">Hours:</li>
-        <li data-hours="2">2</li>
-        <li data-hours="3">3</li>
         <li data-hours="4">4</li>
         <li data-hours="6">6</li>
         <li data-hours="12">12</li>
-        <li data-hours="24">24</li>
         <li>...</li>
       </ul>
     </div>
