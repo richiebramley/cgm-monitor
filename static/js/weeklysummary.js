@@ -21,6 +21,7 @@ function init() {
   if (window.Nightscout && window.Nightscout.client) {
     weeklySummary.client = window.Nightscout.client;
     weeklySummary.settings = weeklySummary.client.settings;
+    console.log('Client found immediately, settings:', weeklySummary.settings);
     setupEventListeners();
     loadWeeklyData();
   } else {
@@ -29,6 +30,7 @@ function init() {
       if (window.Nightscout && window.Nightscout.client) {
         weeklySummary.client = window.Nightscout.client;
         weeklySummary.settings = weeklySummary.client.settings;
+        console.log('Client found after waiting, settings:', weeklySummary.settings);
         clearInterval(checkClient);
         setupEventListeners();
         loadWeeklyData();
@@ -90,9 +92,18 @@ function loadWeeklyData() {
   
   updateDateRange(weeklySummary.currentWeekStart, weekEnd);
   
-  // Get target ranges from client settings
+  // Get target ranges from client settings with fallback
   var targetLow = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.thresholds.bgLow : 3.5;
   var targetHigh = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.thresholds.bgHigh : 10;
+  
+  // Convert target ranges to user's preferred units
+  var units = getUserUnits();
+  if (units === 'mmol') {
+    targetLow = targetLow / 18;
+    targetHigh = targetHigh / 18;
+  }
+  
+  console.log('Using target ranges:', targetLow, 'to', targetHigh, 'in units:', units);
   
   // Load data for the week
   var fromDate = weeklySummary.currentWeekStart.toISOString();
@@ -291,13 +302,13 @@ function generateRecommendations(stats, targetLow, targetHigh) {
     recommendations.push({
       type: 'warning',
       title: 'High Average Glucose',
-      description: 'Your average glucose of ' + convertToUserUnits(stats.mean, weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.units : 'mg/dl') + ' is above your target range. Consider adjusting your basal rates or meal boluses.'
+      description: 'Your average glucose of ' + convertToUserUnits(stats.mean, getUserUnits()) + ' is above your target range. Consider adjusting your basal rates or meal boluses.'
     });
   } else if (stats.mean < targetLow * 0.9) {
     recommendations.push({
       type: 'warning',
       title: 'Low Average Glucose',
-      description: 'Your average glucose of ' + convertToUserUnits(stats.mean, weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.units : 'mg/dl') + ' is below your target range. Consider reducing your insulin doses.'
+      description: 'Your average glucose of ' + convertToUserUnits(stats.mean, getUserUnits()) + ' is below your target range. Consider reducing your insulin doses.'
     });
   }
   
@@ -369,7 +380,7 @@ function analyzeTrends(data) {
 
 function updateStatistics(stats) {
   // Get user's preferred units from client settings
-  var units = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.units : 'mg/dl';
+  var units = getUserUnits();
   
   // Convert values to user's preferred units
   var avgGlucose = convertToUserUnits(stats.mean, units);
@@ -420,7 +431,7 @@ function createCharts(data, targetLow, targetHigh) {
 
 function createDailyChart(data, targetLow, targetHigh) {
   // Get user's preferred units from client settings
-  var units = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.units : 'mg/dl';
+  var units = getUserUnits();
   
   // Group data by day of week
   var dailyAverages = {};
@@ -472,7 +483,7 @@ function createDailyChart(data, targetLow, targetHigh) {
 
 function createHourlyChart(data, targetLow, targetHigh) {
   // Get user's preferred units from client settings
-  var units = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.units : 'mg/dl';
+  var units = getUserUnits();
   
   // Group data by hour
   var hourlyAverages = {};
@@ -543,6 +554,25 @@ function showError(message) {
   $('#content').hide();
   $('#error').show();
   $('#errorMessage').text(message);
+}
+
+// Helper function to get user units with fallback
+function getUserUnits() {
+  // Try to get from client settings first
+  if (weeklySummary.client && weeklySummary.client.settings && weeklySummary.client.settings.units) {
+    console.log('Getting units from client settings:', weeklySummary.client.settings.units);
+    return weeklySummary.client.settings.units;
+  }
+  
+  // Fallback to localStorage
+  try {
+    var storedUnits = localStorage.getItem('units');
+    console.log('Getting units from localStorage:', storedUnits);
+    return storedUnits || 'mg/dl';
+  } catch (e) {
+    console.log('Error accessing localStorage, using default mg/dl');
+    return 'mg/dl';
+  }
 }
 
 // Initialize when document is ready
