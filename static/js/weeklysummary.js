@@ -147,6 +147,8 @@ function processWeeklyData(data, targetLow, targetHigh) {
       return;
     }
     
+    console.log('Raw SGV data sample:', sgvData.slice(0, 5));
+    
     // Convert to numbers and filter out invalid values
     sgvData = sgvData.map(function(entry) {
       return {
@@ -157,6 +159,9 @@ function processWeeklyData(data, targetLow, targetHigh) {
     }).filter(function(entry) {
       return !isNaN(entry.sgv) && entry.sgv > 0;
     });
+    
+    console.log('Processed SGV data sample:', sgvData.slice(0, 5));
+    console.log('Target ranges for comparison:', targetLow, 'to', targetHigh);
     
     // Calculate statistics
     var stats = calculateStatistics(sgvData, targetLow, targetHigh);
@@ -180,32 +185,55 @@ function processWeeklyData(data, targetLow, targetHigh) {
 function calculateStatistics(data, targetLow, targetHigh) {
   var values = data.map(function(d) { return d.sgv; });
   var total = values.length;
+  var units = getUserUnits();
   
   console.log('Calculating statistics with thresholds:', targetLow, 'to', targetHigh, 'for', total, 'readings');
+  console.log('User units:', units);
+  console.log('Sample glucose values (raw):', values.slice(0, 10));
   
-  // Basic statistics
-  var sum = values.reduce(function(a, b) { return a + b; }, 0);
+  // Convert values to user's preferred units for comparison
+  var convertedValues = values.map(function(value) {
+    if (units === 'mmol') {
+      return value / 18; // Convert mg/dL to mmol/L
+    } else {
+      return value; // Keep as mg/dL
+    }
+  });
+  
+  console.log('Sample glucose values (converted to', units, '):', convertedValues.slice(0, 10));
+  
+  // Basic statistics (use converted values for mean/stdDev)
+  var sum = convertedValues.reduce(function(a, b) { return a + b; }, 0);
   var mean = sum / total;
   
   // Standard deviation
-  var variance = values.reduce(function(acc, val) {
+  var variance = convertedValues.reduce(function(acc, val) {
     return acc + Math.pow(val - mean, 2);
   }, 0) / total;
   var stdDev = Math.sqrt(variance);
   
-  // Range analysis
-  var lowCount = values.filter(function(v) { return v < targetLow; }).length;
-  var highCount = values.filter(function(v) { return v >= targetHigh; }).length;
-  var inRangeCount = total - lowCount - highCount;
+  // Range analysis with detailed debugging (use converted values)
+  var lowValues = convertedValues.filter(function(v) { return v < targetLow; });
+  var highValues = convertedValues.filter(function(v) { return v >= targetHigh; });
+  var inRangeValues = convertedValues.filter(function(v) { return v >= targetLow && v < targetHigh; });
   
-  console.log('Range analysis - Low:', lowCount, 'In range:', inRangeCount, 'High:', highCount);
+  var lowCount = lowValues.length;
+  var highCount = highValues.length;
+  var inRangeCount = inRangeValues.length;
+  
+  console.log('Range analysis details (using', units, 'values):');
+  console.log('- Low values (<', targetLow, '):', lowCount, 'samples:', lowValues.slice(0, 5));
+  console.log('- In range values (>=', targetLow, 'and <', targetHigh, '):', inRangeCount, 'samples:', inRangeValues.slice(0, 5));
+  console.log('- High values (>=', targetHigh, '):', highCount, 'samples:', highValues.slice(0, 5));
   
   // Time in range percentage
   var timeInRange = (inRangeCount / total) * 100;
   
-  // Min and max
-  var min = Math.min.apply(null, values);
-  var max = Math.max.apply(null, values);
+  console.log('Final time in range calculation:', inRangeCount, '/', total, '=', timeInRange, '%');
+  
+  // Min and max (use converted values)
+  var min = Math.min.apply(null, convertedValues);
+  var max = Math.max.apply(null, convertedValues);
   
   // Hourly distribution
   var hourlyData = {};
