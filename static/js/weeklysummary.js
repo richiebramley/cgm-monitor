@@ -469,6 +469,9 @@ function createCharts(data, targetLow, targetHigh) {
   
   // Hourly distribution chart
   createHourlyChart(data, targetLow, targetHigh);
+  
+  // Weekly graph with daily averages and standard deviations
+  createWeeklyGraph(data, targetLow, targetHigh);
 }
 
 function createDailyChart(data, targetLow, targetHigh) {
@@ -567,6 +570,194 @@ function createHourlyChart(data, targetLow, targetHigh) {
     row.append('<td style="padding: 8px; border: 1px solid #ddd;">' + hour.hour + ':00</td>');
     row.append('<td style="padding: 8px; border: 1px solid #ddd;">' + convertToUserUnits(hour.average, units) + '</td>');
     row.append('<td style="padding: 8px; border: 1px solid #ddd;">' + hour.count + '</td>');
+    table.append(row);
+  });
+  
+  container.append(table);
+}
+
+function createWeeklyGraph(data, targetLow, targetHigh) {
+  // Get user's preferred units from client settings
+  var units = getUserUnits();
+  
+  // Group data by day of week
+  var dailyData = {};
+  var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  
+  // Initialize daily data structure
+  for (var i = 0; i < 7; i++) {
+    dailyData[i] = [];
+  }
+  
+  // Group glucose values by day of week
+  data.forEach(function(entry) {
+    var day = entry.date.getDay();
+    dailyData[day].push(entry.sgv);
+  });
+  
+  // Calculate daily statistics
+  var chartData = [];
+  for (var i = 0; i < 7; i++) {
+    if (dailyData[i].length > 0) {
+      // Convert to user's preferred units
+      var convertedValues = dailyData[i].map(function(value) {
+        if (units === 'mmol') {
+          return value / 18; // Convert mg/dL to mmol/L
+        } else {
+          return value; // Keep as mg/dL
+        }
+      });
+      
+      // Calculate average
+      var sum = convertedValues.reduce(function(a, b) { return a + b; }, 0);
+      var average = sum / convertedValues.length;
+      
+      // Calculate standard deviation
+      var variance = convertedValues.reduce(function(acc, val) {
+        return acc + Math.pow(val - average, 2);
+      }, 0) / convertedValues.length;
+      var stdDev = Math.sqrt(variance);
+      
+      chartData.push({
+        day: dayNames[i],
+        dayIndex: i,
+        average: average,
+        stdDev: stdDev,
+        count: convertedValues.length
+      });
+    }
+  }
+  
+  // Create the graph container
+  var container = $('#weeklyGraph');
+  container.empty();
+  
+  // Add chart title
+  container.append('<h3>Daily Glucose Trends</h3>');
+  container.append('<p style="color: #666; margin-bottom: 20px;">Average and standard deviation for each day of the week</p>');
+  
+  // Create canvas for the chart
+  var canvas = $('<canvas id="weeklyChartCanvas" width="800" height="400"></canvas>');
+  container.append(canvas);
+  
+  // Create the chart using Chart.js (if available) or fallback to HTML table
+  if (typeof Chart !== 'undefined') {
+    createChartJSGraph(chartData, units, targetLow, targetHigh);
+  } else {
+    createHTMLTableGraph(chartData, units, targetLow, targetHigh);
+  }
+}
+
+function createChartJSGraph(chartData, units, targetLow, targetHigh) {
+  var ctx = document.getElementById('weeklyChartCanvas').getContext('2d');
+  
+  var labels = chartData.map(function(d) { return d.day; });
+  var averages = chartData.map(function(d) { return d.average; });
+  var stdDevs = chartData.map(function(d) { return d.stdDev; });
+  
+  // Calculate upper and lower bounds for standard deviation bands
+  var upperBounds = averages.map(function(avg, i) { return avg + stdDevs[i]; });
+  var lowerBounds = averages.map(function(avg, i) { return avg - stdDevs[i]; });
+  
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Daily Average',
+          data: averages,
+          borderColor: '#667eea',
+          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+          borderWidth: 3,
+          fill: false,
+          tension: 0.1
+        },
+        {
+          label: 'Upper Bound (Avg + SD)',
+          data: upperBounds,
+          borderColor: 'rgba(102, 126, 234, 0.3)',
+          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+          borderWidth: 1,
+          fill: false,
+          tension: 0.1
+        },
+        {
+          label: 'Lower Bound (Avg - SD)',
+          data: lowerBounds,
+          borderColor: 'rgba(102, 126, 234, 0.3)',
+          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+          borderWidth: 1,
+          fill: false,
+          tension: 0.1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: false,
+          title: {
+            display: true,
+            text: 'Glucose (' + (units === 'mmol' ? 'mmol/L' : 'mg/dL') + ')'
+          },
+          grid: {
+            color: 'rgba(0, 0, 0, 0.1)'
+          }
+        },
+        x: {
+          title: {
+            display: true,
+            text: 'Day of Week'
+          },
+          grid: {
+            color: 'rgba(0, 0, 0, 0.1)'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top'
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              var label = context.dataset.label || '';
+              if (label) {
+                label += ': ';
+              }
+              label += context.parsed.y.toFixed(1) + ' ' + (units === 'mmol' ? 'mmol/L' : 'mg/dL');
+              return label;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function createHTMLTableGraph(chartData, units, targetLow, targetHigh) {
+  // Fallback to HTML table if Chart.js is not available
+  var container = $('#weeklyGraph');
+  container.find('canvas').remove();
+  
+  var table = $('<table style="width: 100%; border-collapse: collapse; margin-top: 20px;"></table>');
+  var header = $('<tr><th style="padding: 12px; border: 1px solid #ddd; background-color: #f8f9fa;">Day</th><th style="padding: 12px; border: 1px solid #ddd; background-color: #f8f9fa;">Average</th><th style="padding: 12px; border: 1px solid #ddd; background-color: #f8f9fa;">Std Dev</th><th style="padding: 12px; border: 1px solid #ddd; background-color: #f8f9fa;">Range</th><th style="padding: 12px; border: 1px solid #ddd; background-color: #f8f9fa;">Readings</th></tr>');
+  table.append(header);
+  
+  chartData.forEach(function(day) {
+    var row = $('<tr></tr>');
+    var rangeText = (day.average - day.stdDev).toFixed(1) + ' - ' + (day.average + day.stdDev).toFixed(1);
+    
+    row.append('<td style="padding: 12px; border: 1px solid #ddd;">' + day.day + '</td>');
+    row.append('<td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">' + day.average.toFixed(1) + '</td>');
+    row.append('<td style="padding: 12px; border: 1px solid #ddd;">' + day.stdDev.toFixed(1) + '</td>');
+    row.append('<td style="padding: 12px; border: 1px solid #ddd;">' + rangeText + '</td>');
+    row.append('<td style="padding: 12px; border: 1px solid #ddd;">' + day.count + '</td>');
+    
     table.append(row);
   });
   
