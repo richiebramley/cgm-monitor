@@ -17,14 +17,24 @@ function init() {
   weeklySummary.currentWeekStart.setDate(now.getDate() - daysToMonday);
   weeklySummary.currentWeekStart.setHours(0, 0, 0, 0);
   
-  // Initialize client and settings
+  // Initialize client and settings - wait for client to be available
   if (window.Nightscout && window.Nightscout.client) {
     weeklySummary.client = window.Nightscout.client;
     weeklySummary.settings = weeklySummary.client.settings;
+    setupEventListeners();
+    loadWeeklyData();
+  } else {
+    // Wait for client to be available
+    var checkClient = setInterval(function() {
+      if (window.Nightscout && window.Nightscout.client) {
+        weeklySummary.client = window.Nightscout.client;
+        weeklySummary.settings = weeklySummary.client.settings;
+        clearInterval(checkClient);
+        setupEventListeners();
+        loadWeeklyData();
+      }
+    }, 100);
   }
-  
-  setupEventListeners();
-  loadWeeklyData();
 }
 
 function setupEventListeners() {
@@ -80,9 +90,9 @@ function loadWeeklyData() {
   
   updateDateRange(weeklySummary.currentWeekStart, weekEnd);
   
-  // Get target ranges from settings
-  var targetLow = weeklySummary.settings ? weeklySummary.settings.thresholds.bgLow : 3.5;
-  var targetHigh = weeklySummary.settings ? weeklySummary.settings.thresholds.bgHigh : 10;
+  // Get target ranges from client settings
+  var targetLow = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.thresholds.bgLow : 3.5;
+  var targetHigh = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.thresholds.bgHigh : 10;
   
   // Load data for the week
   var fromDate = weeklySummary.currentWeekStart.toISOString();
@@ -281,13 +291,13 @@ function generateRecommendations(stats, targetLow, targetHigh) {
     recommendations.push({
       type: 'warning',
       title: 'High Average Glucose',
-      description: 'Your average glucose of ' + convertToUserUnits(stats.mean, weeklySummary.settings ? weeklySummary.settings.units : 'mg/dl') + ' is above your target range. Consider adjusting your basal rates or meal boluses.'
+      description: 'Your average glucose of ' + convertToUserUnits(stats.mean, weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.units : 'mg/dl') + ' is above your target range. Consider adjusting your basal rates or meal boluses.'
     });
   } else if (stats.mean < targetLow * 0.9) {
     recommendations.push({
       type: 'warning',
       title: 'Low Average Glucose',
-      description: 'Your average glucose of ' + convertToUserUnits(stats.mean, weeklySummary.settings ? weeklySummary.settings.units : 'mg/dl') + ' is below your target range. Consider reducing your insulin doses.'
+      description: 'Your average glucose of ' + convertToUserUnits(stats.mean, weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.units : 'mg/dl') + ' is below your target range. Consider reducing your insulin doses.'
     });
   }
   
@@ -358,8 +368,8 @@ function analyzeTrends(data) {
 }
 
 function updateStatistics(stats) {
-  // Get user's preferred units
-  var units = weeklySummary.settings ? weeklySummary.settings.units : 'mg/dl';
+  // Get user's preferred units from client settings
+  var units = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.units : 'mg/dl';
   
   // Convert values to user's preferred units
   var avgGlucose = convertToUserUnits(stats.mean, units);
@@ -375,7 +385,7 @@ function updateStatistics(stats) {
 
 function convertToUserUnits(value, units) {
   if (units === 'mmol') {
-    // Convert from mg/dL to mmol/L
+    // Convert from mg/dL to mmol/L (divide by 18)
     return (Math.round((value / 18) * 10) / 10).toFixed(1);
   } else {
     // Keep as mg/dL
@@ -409,8 +419,8 @@ function createCharts(data, targetLow, targetHigh) {
 }
 
 function createDailyChart(data, targetLow, targetHigh) {
-  // Get user's preferred units
-  var units = weeklySummary.settings ? weeklySummary.settings.units : 'mg/dl';
+  // Get user's preferred units from client settings
+  var units = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.units : 'mg/dl';
   
   // Group data by day of week
   var dailyAverages = {};
@@ -461,8 +471,8 @@ function createDailyChart(data, targetLow, targetHigh) {
 }
 
 function createHourlyChart(data, targetLow, targetHigh) {
-  // Get user's preferred units
-  var units = weeklySummary.settings ? weeklySummary.settings.units : 'mg/dl';
+  // Get user's preferred units from client settings
+  var units = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.units : 'mg/dl';
   
   // Group data by hour
   var hourlyAverages = {};
