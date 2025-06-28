@@ -47,6 +47,8 @@ main {
   font-weight: bold;
   color: #ffffff;
   text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.9);
+  font-size: 18vw;
+  line-height: 1.1;
 }
 
 #inner div.dt {
