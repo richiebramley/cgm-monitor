@@ -281,13 +281,13 @@ function generateRecommendations(stats, targetLow, targetHigh) {
     recommendations.push({
       type: 'warning',
       title: 'High Average Glucose',
-      description: 'Your average glucose of ' + Math.round(stats.mean * 10) / 10 + ' is above your target range. Consider adjusting your basal rates or meal boluses.'
+      description: 'Your average glucose of ' + convertToUserUnits(stats.mean, weeklySummary.settings ? weeklySummary.settings.units : 'mg/dl') + ' is above your target range. Consider adjusting your basal rates or meal boluses.'
     });
   } else if (stats.mean < targetLow * 0.9) {
     recommendations.push({
       type: 'warning',
       title: 'Low Average Glucose',
-      description: 'Your average glucose of ' + Math.round(stats.mean * 10) / 10 + ' is below your target range. Consider reducing your insulin doses.'
+      description: 'Your average glucose of ' + convertToUserUnits(stats.mean, weeklySummary.settings ? weeklySummary.settings.units : 'mg/dl') + ' is below your target range. Consider reducing your insulin doses.'
     });
   }
   
@@ -358,12 +358,29 @@ function analyzeTrends(data) {
 }
 
 function updateStatistics(stats) {
+  // Get user's preferred units
+  var units = weeklySummary.settings ? weeklySummary.settings.units : 'mg/dl';
+  
+  // Convert values to user's preferred units
+  var avgGlucose = convertToUserUnits(stats.mean, units);
+  var stdDev = convertToUserUnits(stats.stdDev, units);
+  
   $('#timeInRange').text(Math.round(stats.timeInRange) + '%');
-  $('#avgGlucose').text(Math.round(stats.mean * 10) / 10);
-  $('#stdDev').text(Math.round(stats.stdDev * 10) / 10);
+  $('#avgGlucose').text(avgGlucose);
+  $('#stdDev').text(stdDev);
   $('#totalReadings').text(stats.total);
   $('#highReadings').text(stats.highCount + ' (' + Math.round((stats.highCount / stats.total) * 100) + '%)');
   $('#lowReadings').text(stats.lowCount + ' (' + Math.round((stats.lowCount / stats.total) * 100) + '%)');
+}
+
+function convertToUserUnits(value, units) {
+  if (units === 'mmol') {
+    // Convert from mg/dL to mmol/L
+    return (Math.round((value / 18) * 10) / 10).toFixed(1);
+  } else {
+    // Keep as mg/dL
+    return Math.round(value);
+  }
 }
 
 function updateRecommendations(recommendations) {
@@ -392,6 +409,9 @@ function createCharts(data, targetLow, targetHigh) {
 }
 
 function createDailyChart(data, targetLow, targetHigh) {
+  // Get user's preferred units
+  var units = weeklySummary.settings ? weeklySummary.settings.units : 'mg/dl';
+  
   // Group data by day of week
   var dailyAverages = {};
   var dailyCounts = {};
@@ -432,7 +452,7 @@ function createDailyChart(data, targetLow, targetHigh) {
   chartData.forEach(function(day) {
     var row = $('<tr></tr>');
     row.append('<td style="padding: 10px; border: 1px solid #ddd;">' + day.day + '</td>');
-    row.append('<td style="padding: 10px; border: 1px solid #ddd;">' + Math.round(day.average * 10) / 10 + '</td>');
+    row.append('<td style="padding: 10px; border: 1px solid #ddd;">' + convertToUserUnits(day.average, units) + '</td>');
     row.append('<td style="padding: 10px; border: 1px solid #ddd;">' + day.count + '</td>');
     table.append(row);
   });
@@ -441,6 +461,9 @@ function createDailyChart(data, targetLow, targetHigh) {
 }
 
 function createHourlyChart(data, targetLow, targetHigh) {
+  // Get user's preferred units
+  var units = weeklySummary.settings ? weeklySummary.settings.units : 'mg/dl';
+  
   // Group data by hour
   var hourlyAverages = {};
   var hourlyCounts = {};
@@ -479,7 +502,7 @@ function createHourlyChart(data, targetLow, targetHigh) {
   chartData.forEach(function(hour) {
     var row = $('<tr></tr>');
     row.append('<td style="padding: 8px; border: 1px solid #ddd;">' + hour.hour + ':00</td>');
-    row.append('<td style="padding: 8px; border: 1px solid #ddd;">' + Math.round(hour.average * 10) / 10 + '</td>');
+    row.append('<td style="padding: 8px; border: 1px solid #ddd;">' + convertToUserUnits(hour.average, units) + '</td>');
     row.append('<td style="padding: 8px; border: 1px solid #ddd;">' + hour.count + '</td>');
     table.append(row);
   });
