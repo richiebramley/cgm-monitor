@@ -92,15 +92,19 @@ function loadWeeklyData() {
   
   updateDateRange(weeklySummary.currentWeekStart, weekEnd);
   
-  // Get target ranges from client settings with fallback
-  var targetLow = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.thresholds.bgLow : 3.5;
-  var targetHigh = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.thresholds.bgHigh : 10;
-  
-  // Convert target ranges to user's preferred units
+  // Get user's preferred units
   var units = getUserUnits();
+  
+  // Set appropriate target ranges based on units
+  var targetLow, targetHigh;
   if (units === 'mmol') {
-    targetLow = targetLow / 18;
-    targetHigh = targetHigh / 18;
+    // Use mmol/L thresholds
+    targetLow = 4.0;
+    targetHigh = 10.0;
+  } else {
+    // Use mg/dL thresholds (convert from mmol/L if needed)
+    targetLow = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.thresholds.bgLow : 72; // 4.0 * 18
+    targetHigh = weeklySummary.client && weeklySummary.client.settings ? weeklySummary.client.settings.thresholds.bgHigh : 180; // 10.0 * 18
   }
   
   console.log('Using target ranges:', targetLow, 'to', targetHigh, 'in units:', units);
@@ -172,6 +176,8 @@ function calculateStatistics(data, targetLow, targetHigh) {
   var values = data.map(function(d) { return d.sgv; });
   var total = values.length;
   
+  console.log('Calculating statistics with thresholds:', targetLow, 'to', targetHigh, 'for', total, 'readings');
+  
   // Basic statistics
   var sum = values.reduce(function(a, b) { return a + b; }, 0);
   var mean = sum / total;
@@ -186,6 +192,8 @@ function calculateStatistics(data, targetLow, targetHigh) {
   var lowCount = values.filter(function(v) { return v < targetLow; }).length;
   var highCount = values.filter(function(v) { return v >= targetHigh; }).length;
   var inRangeCount = total - lowCount - highCount;
+  
+  console.log('Range analysis - Low:', lowCount, 'In range:', inRangeCount, 'High:', highCount);
   
   // Time in range percentage
   var timeInRange = (inRangeCount / total) * 100;
