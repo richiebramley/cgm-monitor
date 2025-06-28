@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Weekly Summary - Nightscout</title>
+  
+  <link rel="apple-touch-icon" sizes="57x57" href="/images/apple-touch-icon-57x57.png">
+  <link rel="apple-touch-icon" sizes="60x60" href="/images/apple-touch-icon-60x60.png">
+  <link rel="apple-touch-icon" sizes="72x72" href="/images/apple-touch-icon-72x72.png">
+  <link rel="apple-touch-icon" sizes="76x76" href="/images/apple-touch-icon-76x76.png">
+  <link rel="apple-touch-icon" sizes="114x114" href="/images/apple-touch-icon-114x114.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="/images/apple-touch-icon-120x120.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="/images/apple-touch-icon-144x144.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="/images/apple-touch-icon-152x152.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-180x180.png">
+  <link rel="icon" type="image/png" href="/images/favicon-32x32.png" sizes="32x32">
+  <link rel="icon" type="image/png" href="/images/android-chrome-192x192.png" sizes="192x192">
+  <link rel="icon" type="image/png" href="/images/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/png" href="/images/favicon-16x16.png" sizes="16x16">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="shortcut icon" href="/images/favicon.ico">
+  <meta name="msapplication-TileColor" content="#00a300">
+  <meta name="msapplication-TileImage" content="/images/mstile-144x144.png">
+  <meta name="msapplication-config" content="/browserconfig.xml">
+  <meta name="theme-color" content="#333333">
+
+  <link rel="preload" href="/css/main.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="/css/drawer.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="/css/report.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="/css/dropdown.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="/css/ui-lightness/jquery-ui.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <%- include('preloadCSS')%>
+  
+  <style>
+    .weekly-summary-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .summary-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    .summary-header h1 {
+      margin: 0;
+      font-size: 2.5em;
+      font-weight: 300;
+    }
+    
+    .summary-header .date-range {
+      font-size: 1.2em;
+      opacity: 0.9;
+      margin-top: 10px;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .stat-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border-left: 4px solid #667eea;
+    }
+    
+    .stat-card h3 {
+      margin: 0 0 15px 0;
+      color: #333;
+      font-size: 1.3em;
+    }
+    
+    .stat-value {
+      font-size: 2.5em;
+      font-weight: bold;
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+    
+    .stat-label {
+      color: #666;
+      font-size: 0.9em;
+    }
+    
+    .recommendations {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+    
+    .recommendations h2 {
+      color: #333;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+    
+    .recommendation-item {
+      background: #f8f9fa;
+      border-left: 4px solid #28a745;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 5px;
+    }
+    
+    .recommendation-item.warning {
+      border-left-color: #ffc107;
+    }
+    
+    .recommendation-item.alert {
+      border-left-color: #dc3545;
+    }
+    
+    .recommendation-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: #333;
+    }
+    
+    .recommendation-description {
+      color: #666;
+      font-size: 0.9em;
+    }
+    
+    .chart-container {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+    
+    .chart-container h3 {
+      color: #333;
+      margin-bottom: 15px;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+    
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+    
+    .week-selector {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .week-selector button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 0 5px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+    
+    .week-selector button:hover {
+      background: #5a6fd8;
+    }
+    
+    .week-selector button.active {
+      background: #4a5fc7;
+    }
+  </style>
+</head>
+<body>
+  <%- include('partials/toolbar') %>
+
+  <div class="weekly-summary-container">
+    <div class="summary-header">
+      <h1>Weekly Summary</h1>
+      <div class="date-range" id="dateRange">Loading...</div>
+    </div>
+    
+    <div class="week-selector">
+      <button id="prevWeek">← Previous Week</button>
+      <button id="currentWeek" class="active">Current Week</button>
+      <button id="nextWeek">Next Week →</button>
+    </div>
+    
+    <div id="loading" class="loading">
+      <h3>Loading weekly data...</h3>
+      <p>Please wait while we analyze your data for the selected week.</p>
+    </div>
+    
+    <div id="error" class="error" style="display: none;">
+      <h3>Error Loading Data</h3>
+      <p id="errorMessage"></p>
+    </div>
+    
+    <div id="content" style="display: none;">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h3>Time in Range</h3>
+          <div class="stat-value" id="timeInRange">--</div>
+          <div class="stat-label">Percentage of readings within target range</div>
+        </div>
+        
+        <div class="stat-card">
+          <h3>Average Glucose</h3>
+          <div class="stat-value" id="avgGlucose">--</div>
+          <div class="stat-label">Mean glucose level for the week</div>
+        </div>
+        
+        <div class="stat-card">
+          <h3>Standard Deviation</h3>
+          <div class="stat-value" id="stdDev">--</div>
+          <div class="stat-label">Glucose variability measure</div>
+        </div>
+        
+        <div class="stat-card">
+          <h3>Total Readings</h3>
+          <div class="stat-value" id="totalReadings">--</div>
+          <div class="stat-label">Number of glucose readings</div>
+        </div>
+        
+        <div class="stat-card">
+          <h3>High Readings</h3>
+          <div class="stat-value" id="highReadings">--</div>
+          <div class="stat-label">Readings above target range</div>
+        </div>
+        
+        <div class="stat-card">
+          <h3>Low Readings</h3>
+          <div class="stat-value" id="lowReadings">--</div>
+          <div class="stat-label">Readings below target range</div>
+        </div>
+      </div>
+      
+      <div class="recommendations">
+        <h2>Recommendations</h2>
+        <div id="recommendationsList">
+          <!-- Recommendations will be populated here -->
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <h3>Daily Glucose Trends</h3>
+        <div id="dailyChart" style="height: 400px;"></div>
+      </div>
+      
+      <div class="chart-container">
+        <h3>Hourly Distribution</h3>
+        <div id="hourlyChart" style="height: 300px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <%- include('partials/authentication-status') %>
+
+  <script src="<%= locals.bundle %>/js/bundle.app.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/weeklysummary.js"></script>
+</body>
+</html> 

@@ -4,8 +4,9 @@ body {
   padding: 0;
   overflow: hidden;
   font-family: 'Open Sans', Arial, Helvetica, sans-serif;
-  color: grey;
+  color: white;
   background-color: black;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 main {
@@ -29,6 +30,7 @@ main {
   margin-right: 2vmin;
   margin-left: 2vmin;
   line-height: 1em;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 #inner div img {
@@ -41,12 +43,35 @@ main {
   height: 3vmin;
 }
 
+#inner div.sg {
+  font-weight: bold;
+  color: #ffffff;
+  text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.9);
+}
+
+#inner div.dt {
+  color: #e6f3ff;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+#inner div.ag {
+  color: #f0f0f0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+#inner div.tm {
+  color: #ffffff;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
 #errorMessage {
   font-size: 25em;
 }
 
 .stale {
   text-decoration: line-through;
+  color: #ffcccc !important;
+  text-shadow: 2px 2px 4px rgba(255, 0, 0, 0.3) !important;
 }
 
 .close {
