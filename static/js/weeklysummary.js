@@ -17,11 +17,15 @@ function init() {
   weeklySummary.currentWeekStart.setDate(now.getDate() - daysToMonday);
   weeklySummary.currentWeekStart.setHours(0, 0, 0, 0);
   
+  // Debug current settings
+  debugSettings();
+  
   // Initialize client and settings - wait for client to be available
   if (window.Nightscout && window.Nightscout.client) {
     weeklySummary.client = window.Nightscout.client;
     weeklySummary.settings = weeklySummary.client.settings;
     console.log('Client found immediately, settings:', weeklySummary.settings);
+    debugSettings();
     setupEventListeners();
     loadWeeklyData();
   } else {
@@ -31,6 +35,7 @@ function init() {
         weeklySummary.client = window.Nightscout.client;
         weeklySummary.settings = weeklySummary.client.settings;
         console.log('Client found after waiting, settings:', weeklySummary.settings);
+        debugSettings();
         clearInterval(checkClient);
         setupEventListeners();
         loadWeeklyData();
@@ -566,6 +571,10 @@ function showError(message) {
 
 // Helper function to get user units with fallback
 function getUserUnits() {
+  // TEMPORARY: Force mmol/L for testing
+  console.log('FORCING mmol/L FOR TESTING');
+  return 'mmol';
+  
   // Try to get from client settings first
   if (weeklySummary.client && weeklySummary.client.settings && weeklySummary.client.settings.units) {
     console.log('Getting units from client settings:', weeklySummary.client.settings.units);
@@ -581,6 +590,24 @@ function getUserUnits() {
     console.log('Error accessing localStorage, using default mg/dl');
     return 'mg/dl';
   }
+}
+
+// Debug function to show all available settings
+function debugSettings() {
+  console.log('=== DEBUG SETTINGS ===');
+  console.log('weeklySummary.client:', weeklySummary.client);
+  if (weeklySummary.client) {
+    console.log('weeklySummary.client.settings:', weeklySummary.client.settings);
+  }
+  console.log('weeklySummary.settings:', weeklySummary.settings);
+  
+  try {
+    console.log('localStorage units:', localStorage.getItem('units'));
+    console.log('localStorage keys:', Object.keys(localStorage));
+  } catch (e) {
+    console.log('Error accessing localStorage:', e);
+  }
+  console.log('=== END DEBUG ===');
 }
 
 // Initialize when document is ready
