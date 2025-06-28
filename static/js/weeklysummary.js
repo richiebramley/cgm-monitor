@@ -322,7 +322,7 @@ function generateRecommendations(stats, targetLow, targetHigh) {
     recommendations.push({
       type: 'warning',
       title: 'High Glucose Variability',
-      description: 'Your glucose levels show high variability (SD: ' + Math.round(stats.stdDev * 10) / 10 + '). Consider more consistent meal timing and insulin dosing.'
+      description: 'Your glucose levels show high variability (SD: ' + (getUserUnits() === 'mmol' ? stats.stdDev.toFixed(1) : Math.round(stats.stdDev)) + '). Consider more consistent meal timing and insulin dosing.'
     });
   }
   
@@ -343,13 +343,13 @@ function generateRecommendations(stats, targetLow, targetHigh) {
     recommendations.push({
       type: 'warning',
       title: 'High Average Glucose',
-      description: 'Your average glucose of ' + convertToUserUnits(stats.mean, getUserUnits()) + ' is above your target range. Consider adjusting your basal rates or meal boluses.'
+      description: 'Your average glucose of ' + (getUserUnits() === 'mmol' ? stats.mean.toFixed(1) : Math.round(stats.mean)) + ' is above your target range. Consider adjusting your basal rates or meal boluses.'
     });
   } else if (stats.mean < targetLow * 0.9) {
     recommendations.push({
       type: 'warning',
       title: 'Low Average Glucose',
-      description: 'Your average glucose of ' + convertToUserUnits(stats.mean, getUserUnits()) + ' is below your target range. Consider reducing your insulin doses.'
+      description: 'Your average glucose of ' + (getUserUnits() === 'mmol' ? stats.mean.toFixed(1) : Math.round(stats.mean)) + ' is below your target range. Consider reducing your insulin doses.'
     });
   }
   
@@ -423,9 +423,10 @@ function updateStatistics(stats) {
   // Get user's preferred units from client settings
   var units = getUserUnits();
   
-  // Convert values to user's preferred units
-  var avgGlucose = convertToUserUnits(stats.mean, units);
-  var stdDev = convertToUserUnits(stats.stdDev, units);
+  // The stats.mean and stats.stdDev are already in the correct units from calculateStatistics
+  // Just format them for display
+  var avgGlucose = units === 'mmol' ? stats.mean.toFixed(1) : Math.round(stats.mean);
+  var stdDev = units === 'mmol' ? stats.stdDev.toFixed(1) : Math.round(stats.stdDev);
   
   $('#timeInRange').text(Math.round(stats.timeInRange) + '%');
   $('#avgGlucose').text(avgGlucose);
