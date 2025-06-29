@@ -887,7 +887,7 @@ function createWeeklyGraph(data, targetLow, targetHigh) {
   container.append('<p style="color: #666; margin-bottom: 20px;">Average and standard deviation for each day of the week</p>');
   
   // Create canvas for the chart
-  var canvas = $('<canvas id="weeklyChartCanvas" width="800" height="400"></canvas>');
+  var canvas = $('<canvas id="weeklyChartCanvas" style="width: 100%; height: 100%; display: block;"></canvas>');
   container.append(canvas);
   
   // Create the chart using Chart.js (if available) or fallback to HTML table
