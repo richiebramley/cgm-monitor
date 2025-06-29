@@ -286,6 +286,85 @@ function calculateStatistics(data, targetLow, targetHigh) {
     dailyData[dayOfWeek].push(entry.sgv);
   });
   
+  // Calculate glucose change rates between consecutive readings
+  var changeRates = [];
+  var risingRates = [];
+  var fallingRates = [];
+  
+  // Sort data by timestamp to ensure chronological order
+  var sortedData = data.slice().sort(function(a, b) {
+    return a.mills - b.mills;
+  });
+  
+  // Calculate change rates between consecutive readings
+  for (var i = 1; i < sortedData.length; i++) {
+    var currentReading = sortedData[i];
+    var previousReading = sortedData[i - 1];
+    
+    // Calculate time difference in minutes
+    var timeDiffMinutes = (currentReading.mills - previousReading.mills) / (1000 * 60);
+    
+    // Skip if time difference is too large (more than 15 minutes) or too small
+    if (timeDiffMinutes < 3 || timeDiffMinutes > 15) {
+      continue;
+    }
+    
+    // Calculate glucose change
+    var glucoseChange = currentReading.sgv - previousReading.sgv;
+    
+    // Calculate rate of change per minute
+    var ratePerMinute = glucoseChange / timeDiffMinutes;
+    
+    // Convert to user's preferred units for display
+    var displayRate = units === 'mmol' ? ratePerMinute / 18 : ratePerMinute;
+    
+    changeRates.push({
+      rate: displayRate,
+      timeDiff: timeDiffMinutes,
+      glucoseChange: glucoseChange,
+      timestamp: currentReading.mills
+    });
+    
+    // Categorize as rising or falling
+    if (ratePerMinute > 0) {
+      risingRates.push(displayRate);
+    } else if (ratePerMinute < 0) {
+      fallingRates.push(Math.abs(displayRate)); // Store absolute value for falling rates
+    }
+  }
+  
+  // Calculate statistics for rising and falling rates
+  var risingRateStats = {
+    count: risingRates.length,
+    mean: risingRates.length > 0 ? risingRates.reduce(function(a, b) { return a + b; }, 0) / risingRates.length : 0,
+    max: risingRates.length > 0 ? Math.max.apply(null, risingRates) : 0,
+    median: risingRates.length > 0 ? risingRates.sort(function(a, b) { return a - b; })[Math.floor(risingRates.length / 2)] : 0
+  };
+  
+  var fallingRateStats = {
+    count: fallingRates.length,
+    mean: fallingRates.length > 0 ? fallingRates.reduce(function(a, b) { return a + b; }, 0) / fallingRates.length : 0,
+    max: fallingRates.length > 0 ? Math.max.apply(null, fallingRates) : 0,
+    median: fallingRates.length > 0 ? fallingRates.sort(function(a, b) { return a - b; })[Math.floor(fallingRates.length / 2)] : 0
+  };
+  
+  // Calculate percentage of readings with significant change rates
+  var significantRisingThreshold = units === 'mmol' ? 0.1 : 2; // 0.1 mmol/L/min or 2 mg/dL/min
+  var significantFallingThreshold = units === 'mmol' ? 0.1 : 2;
+  
+  var significantRisingCount = risingRates.filter(function(rate) { return rate >= significantRisingThreshold; }).length;
+  var significantFallingCount = fallingRates.filter(function(rate) { return rate >= significantFallingThreshold; }).length;
+  
+  var significantRisingPercentage = risingRates.length > 0 ? (significantRisingCount / risingRates.length) * 100 : 0;
+  var significantFallingPercentage = fallingRates.length > 0 ? (significantFallingCount / fallingRates.length) * 100 : 0;
+  
+  console.log('Glucose change rate analysis:');
+  console.log('- Total change rate calculations:', changeRates.length);
+  console.log('- Rising rates:', risingRates.length, 'readings, mean:', risingRateStats.mean.toFixed(2), 'max:', risingRateStats.max.toFixed(2));
+  console.log('- Falling rates:', fallingRates.length, 'readings, mean:', fallingRateStats.mean.toFixed(2), 'max:', fallingRateStats.max.toFixed(2));
+  console.log('- Significant rising (>=' + significantRisingThreshold + '):', significantRisingCount, '(', significantRisingPercentage.toFixed(1) + '%)');
+  console.log('- Significant falling (>=' + significantFallingThreshold + '):', significantFallingCount, '(', significantFallingPercentage.toFixed(1) + '%)');
+  
   return {
     total: total,
     mean: mean,
@@ -300,6 +379,12 @@ function calculateStatistics(data, targetLow, targetHigh) {
     targetHigh: targetHigh,
     lowTimeString: lowTimeString,
     highTimeString: highTimeString,
+    risingRateStats: risingRateStats,
+    fallingRateStats: fallingRateStats,
+    significantRisingPercentage: significantRisingPercentage,
+    significantFallingPercentage: significantFallingPercentage,
+    significantRisingThreshold: significantRisingThreshold,
+    significantFallingThreshold: significantFallingThreshold,
     hourlyData: hourlyData,
     dailyData: dailyData,
     rawData: data
@@ -384,6 +469,62 @@ function generateRecommendations(stats, targetLow, targetHigh) {
     });
   }
   
+  // Glucose change rate recommendations
+  if (stats.risingRateStats && stats.risingRateStats.count > 0) {
+    var risingThreshold = getUserUnits() === 'mmol' ? 0.1 : 2; // 0.1 mmol/L/min or 2 mg/dL/min
+    var risingRate = stats.risingRateStats.mean;
+    
+    if (risingRate > risingThreshold * 1.5) {
+      recommendations.push({
+        type: 'warning',
+        title: 'High Glucose Rising Rate',
+        description: 'Your glucose rises at an average rate of ' + (getUserUnits() === 'mmol' ? risingRate.toFixed(3) : risingRate.toFixed(1)) + ' per minute. Consider pre-bolusing insulin or reducing carb intake.'
+      });
+    } else if (risingRate > risingThreshold) {
+      recommendations.push({
+        type: 'warning',
+        title: 'Moderate Glucose Rising Rate',
+        description: 'Your glucose rises at an average rate of ' + (getUserUnits() === 'mmol' ? risingRate.toFixed(3) : risingRate.toFixed(1)) + ' per minute. Monitor your post-meal glucose patterns.'
+      });
+    }
+  }
+  
+  if (stats.fallingRateStats && stats.fallingRateStats.count > 0) {
+    var fallingThreshold = getUserUnits() === 'mmol' ? 0.1 : 2; // 0.1 mmol/L/min or 2 mg/dL/min
+    var fallingRate = stats.fallingRateStats.mean;
+    
+    if (fallingRate > fallingThreshold * 1.5) {
+      recommendations.push({
+        type: 'alert',
+        title: 'Rapid Glucose Falling Rate',
+        description: 'Your glucose falls at an average rate of ' + (getUserUnits() === 'mmol' ? fallingRate.toFixed(3) : fallingRate.toFixed(1)) + ' per minute. This may indicate over-insulinization or missed meals.'
+      });
+    } else if (fallingRate > fallingThreshold) {
+      recommendations.push({
+        type: 'warning',
+        title: 'Moderate Glucose Falling Rate',
+        description: 'Your glucose falls at an average rate of ' + (getUserUnits() === 'mmol' ? fallingRate.toFixed(3) : fallingRate.toFixed(1)) + ' per minute. Consider reducing insulin doses or adding snacks.'
+      });
+    }
+  }
+  
+  // Significant change rate recommendations
+  if (stats.significantRisingPercentage > 20) {
+    recommendations.push({
+      type: 'warning',
+      title: 'Frequent Rapid Glucose Increases',
+      description: Math.round(stats.significantRisingPercentage) + '% of your glucose increases were rapid (>=' + (getUserUnits() === 'mmol' ? stats.significantRisingThreshold.toFixed(1) : stats.significantRisingThreshold) + ' per minute). Consider adjusting your insulin timing.'
+    });
+  }
+  
+  if (stats.significantFallingPercentage > 15) {
+    recommendations.push({
+      type: 'alert',
+      title: 'Frequent Rapid Glucose Decreases',
+      description: Math.round(stats.significantFallingPercentage) + '% of your glucose decreases were rapid (>=' + (getUserUnits() === 'mmol' ? stats.significantFallingThreshold.toFixed(1) : stats.significantFallingThreshold) + ' per minute). This may indicate insulin stacking or missed meals.'
+    });
+  }
+  
   // Trend analysis
   var trendAnalysis = analyzeTrends(stats.rawData);
   if (trendAnalysis.hasSignificantTrends) {
@@ -465,6 +606,25 @@ function updateStatistics(stats) {
   $('#totalReadings').text(stats.total);
   $('#highReadings').text(stats.highCount + ' (' + Math.round((stats.highCount / stats.total) * 100) + '%), ' + stats.highTimeString);
   $('#lowReadings').text(stats.lowCount + ' (' + Math.round((stats.lowCount / stats.total) * 100) + '%), ' + stats.lowTimeString);
+  
+  // Display glucose change rates
+  var risingRateDisplay = '--';
+  var fallingRateDisplay = '--';
+  
+  if (stats.risingRateStats && stats.risingRateStats.count > 0) {
+    risingRateDisplay = units === 'mmol' ? 
+      stats.risingRateStats.mean.toFixed(3) + ' mmol/L/min' : 
+      stats.risingRateStats.mean.toFixed(1) + ' mg/dL/min';
+  }
+  
+  if (stats.fallingRateStats && stats.fallingRateStats.count > 0) {
+    fallingRateDisplay = units === 'mmol' ? 
+      stats.fallingRateStats.mean.toFixed(3) + ' mmol/L/min' : 
+      stats.fallingRateStats.mean.toFixed(1) + ' mg/dL/min';
+  }
+  
+  $('#risingRate').text(risingRateDisplay);
+  $('#fallingRate').text(fallingRateDisplay);
 }
 
 function convertToUserUnits(value, units) {
