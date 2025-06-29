@@ -221,10 +221,39 @@ function calculateStatistics(data, targetLow, targetHigh) {
   var highCount = highValues.length;
   var inRangeCount = inRangeValues.length;
   
+  // Calculate time duration for high and low readings
+  // Assuming 5-minute intervals between readings (typical CGM frequency)
+  var readingIntervalMinutes = 5;
+  var lowTimeMinutes = lowCount * readingIntervalMinutes;
+  var highTimeMinutes = highCount * readingIntervalMinutes;
+  
+  // Convert to hours and minutes for display
+  var lowTimeHours = Math.floor(lowTimeMinutes / 60);
+  var lowTimeRemainingMinutes = lowTimeMinutes % 60;
+  var highTimeHours = Math.floor(highTimeMinutes / 60);
+  var highTimeRemainingMinutes = highTimeMinutes % 60;
+  
+  // Format time strings
+  var lowTimeString = '';
+  if (lowTimeHours > 0) {
+    lowTimeString = lowTimeHours + 'h ' + lowTimeRemainingMinutes + 'm';
+  } else {
+    lowTimeString = lowTimeRemainingMinutes + 'm';
+  }
+  
+  var highTimeString = '';
+  if (highTimeHours > 0) {
+    highTimeString = highTimeHours + 'h ' + highTimeRemainingMinutes + 'm';
+  } else {
+    highTimeString = highTimeRemainingMinutes + 'm';
+  }
+  
   console.log('Range analysis details (using', units, 'values):');
   console.log('- Low values (<', targetLow, '):', lowCount, 'samples:', lowValues.slice(0, 5));
   console.log('- In range values (>=', targetLow, 'and <', targetHigh, '):', inRangeCount, 'samples:', inRangeValues.slice(0, 5));
   console.log('- High values (>=', targetHigh, '):', highCount, 'samples:', highValues.slice(0, 5));
+  console.log('- Low time duration:', lowTimeString, '(', lowTimeMinutes, 'minutes)');
+  console.log('- High time duration:', highTimeString, '(', highTimeMinutes, 'minutes)');
   
   // Time in range percentage
   var timeInRange = (inRangeCount / total) * 100;
@@ -269,6 +298,8 @@ function calculateStatistics(data, targetLow, targetHigh) {
     timeInRange: timeInRange,
     targetLow: targetLow,
     targetHigh: targetHigh,
+    lowTimeString: lowTimeString,
+    highTimeString: highTimeString,
     hourlyData: hourlyData,
     dailyData: dailyData,
     rawData: data
@@ -432,8 +463,8 @@ function updateStatistics(stats) {
   $('#avgGlucose').text(avgGlucose);
   $('#stdDev').text(stdDev);
   $('#totalReadings').text(stats.total);
-  $('#highReadings').text(stats.highCount + ' (' + Math.round((stats.highCount / stats.total) * 100) + '%)');
-  $('#lowReadings').text(stats.lowCount + ' (' + Math.round((stats.lowCount / stats.total) * 100) + '%)');
+  $('#highReadings').text(stats.highCount + ' (' + Math.round((stats.highCount / stats.total) * 100) + '%), ' + stats.highTimeString);
+  $('#lowReadings').text(stats.lowCount + ' (' + Math.round((stats.lowCount / stats.total) * 100) + '%), ' + stats.lowTimeString);
 }
 
 function convertToUserUnits(value, units) {
