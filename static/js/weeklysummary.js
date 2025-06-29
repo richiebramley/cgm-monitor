@@ -672,16 +672,30 @@ function createDailyChart(data, targetLow, targetHigh) {
   // Group data by day of week
   var dailyAverages = {};
   var dailyCounts = {};
+  var dailyHighCounts = {};
+  var dailyLowCounts = {};
   
   for (var i = 0; i < 7; i++) {
     dailyAverages[i] = 0;
     dailyCounts[i] = 0;
+    dailyHighCounts[i] = 0;
+    dailyLowCounts[i] = 0;
   }
   
   data.forEach(function(entry) {
     var day = entry.date.getDay();
     dailyAverages[day] += entry.sgv;
     dailyCounts[day]++;
+    
+    // Convert to user's preferred units for comparison
+    var convertedValue = units === 'mmol' ? entry.sgv / 18 : entry.sgv;
+    
+    // Count high and low readings
+    if (convertedValue >= targetHigh) {
+      dailyHighCounts[day]++;
+    } else if (convertedValue < targetLow) {
+      dailyLowCounts[day]++;
+    }
   });
   
   // Calculate averages
@@ -692,29 +706,75 @@ function createDailyChart(data, targetLow, targetHigh) {
     if (dailyCounts[i] > 0) {
       chartData.push({
         day: dayNames[i],
+        dayIndex: i,
         average: dailyAverages[i] / dailyCounts[i],
-        count: dailyCounts[i]
+        count: dailyCounts[i],
+        highCount: dailyHighCounts[i],
+        lowCount: dailyLowCounts[i]
       });
     }
   }
+  
+  // Find the day with the most high readings
+  var highReadingDay = chartData.slice().sort(function(a, b) {
+    return b.highCount - a.highCount;
+  })[0];
+  
+  // Find the day with the most low readings
+  var lowReadingDay = chartData.slice().sort(function(a, b) {
+    return b.lowCount - a.lowCount;
+  })[0];
+  
+  console.log('Day with most high readings:', highReadingDay ? highReadingDay.day : 'none');
+  console.log('Day with most low readings:', lowReadingDay ? lowReadingDay.day : 'none');
   
   // Simple chart using HTML/CSS
   var container = $('#dailyChart');
   container.empty();
   
   var table = $('<table style="width: 100%; border-collapse: collapse;"></table>');
-  var header = $('<tr><th style="padding: 10px; border: 1px solid #ddd;">Day</th><th style="padding: 10px; border: 1px solid #ddd;">Average</th><th style="padding: 10px; border: 1px solid #ddd;">Readings</th></tr>');
+  var header = $('<tr><th style="padding: 10px; border: 1px solid #ddd;">Day</th><th style="padding: 10px; border: 1px solid #ddd;">Average</th><th style="padding: 10px; border: 1px solid #ddd;">Readings</th><th style="padding: 10px; border: 1px solid #ddd;">High</th><th style="padding: 10px; border: 1px solid #ddd;">Low</th></tr>');
   table.append(header);
   
   chartData.forEach(function(day) {
     var row = $('<tr></tr>');
+    
+    // Determine row highlighting
+    var isHighHighlight = highReadingDay && day.dayIndex === highReadingDay.dayIndex;
+    var isLowHighlight = lowReadingDay && day.dayIndex === lowReadingDay.dayIndex;
+    
+    var rowStyle = '';
+    if (isHighHighlight && isLowHighlight) {
+      // Both high and low - use a special color
+      rowStyle = 'background-color: #ffeb3b; font-weight: bold;';
+    } else if (isHighHighlight) {
+      // High readings - use red background
+      rowStyle = 'background-color: #ffcdd2; font-weight: bold;';
+    } else if (isLowHighlight) {
+      // Low readings - use blue background
+      rowStyle = 'background-color: #bbdefb; font-weight: bold;';
+    }
+    
+    if (rowStyle) {
+      row.attr('style', rowStyle);
+    }
+    
     row.append('<td style="padding: 10px; border: 1px solid #ddd;">' + day.day + '</td>');
     row.append('<td style="padding: 10px; border: 1px solid #ddd;">' + convertToUserUnits(day.average, units) + '</td>');
     row.append('<td style="padding: 10px; border: 1px solid #ddd;">' + day.count + '</td>');
+    row.append('<td style="padding: 10px; border: 1px solid #ddd;">' + day.highCount + '</td>');
+    row.append('<td style="padding: 10px; border: 1px solid #ddd;">' + day.lowCount + '</td>');
     table.append(row);
   });
   
   container.append(table);
+  
+  // Add legend
+  var legend = $('<div style="margin-top: 15px; font-size: 0.9em; color: #666;"></div>');
+  legend.append('<div style="margin-bottom: 5px;"><span style="background-color: #ffcdd2; padding: 2px 6px; margin-right: 5px;">■</span> Day with most high readings</div>');
+  legend.append('<div style="margin-bottom: 5px;"><span style="background-color: #bbdefb; padding: 2px 6px; margin-right: 5px;">■</span> Day with most low readings</div>');
+  legend.append('<div><span style="background-color: #ffeb3b; padding: 2px 6px; margin-right: 5px;">■</span> Day with both high and low readings</div>');
+  container.append(legend);
 }
 
 function createHourlyChart(data, targetLow, targetHigh) {
