@@ -1236,29 +1236,37 @@ function findLongestStreakWithTimes(data, targetLow, targetHigh, inRange) {
   var units = getUserUnits();
   var currentStreak = 0;
   var maxStreak = 0;
-  var start = null;
-  var end = null;
-  
+  var currentStart = null;
+  var currentEnd = null;
+  var bestStart = null;
+  var bestEnd = null;
+
   sortedData.forEach(function(entry) {
     var convertedValue = units === 'mmol' ? entry.sgv / 18 : entry.sgv;
     var isInRange = convertedValue >= targetLow && convertedValue < targetHigh;
-    
+
     if (isInRange === inRange) {
-      currentStreak++;
-      maxStreak = Math.max(maxStreak, currentStreak);
-      if (start === null) {
-        start = new Date(entry.date);
+      if (currentStreak === 0) {
+        currentStart = new Date(entry.date);
       }
-      end = new Date(entry.date);
+      currentStreak++;
+      currentEnd = new Date(entry.date);
+      if (currentStreak > maxStreak) {
+        maxStreak = currentStreak;
+        bestStart = currentStart;
+        bestEnd = currentEnd;
+      }
     } else {
       currentStreak = 0;
+      currentStart = null;
+      currentEnd = null;
     }
   });
-  
+
   return {
     count: maxStreak,
-    start: start,
-    end: end
+    start: bestStart,
+    end: bestEnd
   };
 }
 
