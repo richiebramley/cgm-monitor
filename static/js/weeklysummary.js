@@ -168,10 +168,16 @@ function processWeeklyData(data, targetLow, targetHigh) {
     
     // Generate recommendations
     var recommendations = generateRecommendations(stats, targetLow, targetHigh);
+    updateRecommendations(recommendations);
+    
+    // Generate facts
+    var facts = generateFacts(sgvData, stats, targetLow, targetHigh);
+    updateFacts(facts);
     
     // Update UI
     updateStatistics(stats);
-    updateRecommendations(recommendations);
+    
+    // Create charts
     createCharts(sgvData, targetLow, targetHigh);
     
     showContent();
@@ -393,64 +399,38 @@ function calculateStatistics(data, targetLow, targetHigh) {
 
 function generateRecommendations(stats, targetLow, targetHigh) {
   var recommendations = [];
+  var units = getUserUnits();
   
   // Time in range recommendations
   if (stats.timeInRange < 70) {
     recommendations.push({
       type: 'alert',
       title: 'Low Time in Range',
-      description: 'Only ' + Math.round(stats.timeInRange) + '% of readings were within your target range. Consider reviewing your insulin dosing and meal timing.'
+      description: 'Your time in range is ' + Math.round(stats.timeInRange) + '%, which is below the recommended 70%. Focus on improving your glucose management.'
     });
-  } else if (stats.timeInRange < 80) {
-    recommendations.push({
-      type: 'warning',
-      title: 'Moderate Time in Range',
-      description: 'Your time in range is ' + Math.round(stats.timeInRange) + '%. Aim for 80% or higher for optimal diabetes management.'
-    });
-  } else {
+  } else if (stats.timeInRange >= 90) {
     recommendations.push({
       type: 'success',
       title: 'Excellent Time in Range',
-      description: 'Great job! You achieved ' + Math.round(stats.timeInRange) + '% time in range this week.'
+      description: 'Your time in range is ' + Math.round(stats.timeInRange) + '%, which is excellent! Keep up the great work.'
     });
   }
   
   // High readings recommendations
   if (stats.highCount > stats.total * 0.3) {
     recommendations.push({
-      type: 'alert',
-      title: 'Frequent High Readings',
-      description: stats.highCount + ' readings (' + Math.round((stats.highCount / stats.total) * 100) + '%) were above your target range. Consider adjusting your insulin sensitivity or carb ratios.'
+      type: 'warning',
+      title: 'High Glucose Readings',
+      description: 'You have ' + Math.round((stats.highCount / stats.total) * 100) + '% high readings. Consider adjusting your insulin doses or meal timing.'
     });
   }
   
   // Low readings recommendations
   if (stats.lowCount > stats.total * 0.1) {
     recommendations.push({
-      type: 'alert',
-      title: 'Frequent Low Readings',
-      description: stats.lowCount + ' readings (' + Math.round((stats.lowCount / stats.total) * 100) + '%) were below your target range. Consider reducing your insulin doses or increasing your target range.'
-    });
-  }
-  
-  // Variability recommendations
-  if (stats.stdDev > targetHigh * 0.3) {
-    recommendations.push({
       type: 'warning',
-      title: 'High Glucose Variability',
-      description: 'Your glucose levels show high variability (SD: ' + (getUserUnits() === 'mmol' ? stats.stdDev.toFixed(1) : Math.round(stats.stdDev)) + '). Consider more consistent meal timing and insulin dosing.'
-    });
-  }
-  
-  // Data completeness
-  var expectedReadings = 7 * 24 * 12; // 7 days * 24 hours * 12 readings per hour (5-minute intervals)
-  var completeness = (stats.total / expectedReadings) * 100;
-  
-  if (completeness < 80) {
-    recommendations.push({
-      type: 'warning',
-      title: 'Incomplete Data',
-      description: 'Only ' + Math.round(completeness) + '% of expected readings were available. Check your CGM sensor and data upload.'
+      title: 'Low Glucose Readings',
+      description: 'You have ' + Math.round((stats.lowCount / stats.total) * 100) + '% low readings. Consider reducing your insulin doses or increasing your carb intake.'
     });
   }
   
@@ -642,7 +622,7 @@ function updateRecommendations(recommendations) {
   container.empty();
   
   if (recommendations.length === 0) {
-    container.append('<div class="recommendation-item"><div class="recommendation-title">No specific recommendations</div><div class="recommendation-description">Your data looks good! Keep up the great work.</div></div>');
+    container.append('<p style="color: #666; font-style: italic;">No specific recommendations at this time. Keep monitoring your glucose levels.</p>');
     return;
   }
   
@@ -1143,4 +1123,185 @@ function debugSettings() {
 // Initialize when document is ready
 $(document).ready(function() {
   init();
-}); 
+});
+
+function generateFacts(data, stats, targetLow, targetHigh) {
+  var facts = [];
+  var units = getUserUnits();
+  
+  // Find longest streak in range
+  var longestInRangeStreak = findLongestStreak(data, targetLow, targetHigh, true);
+  if (longestInRangeStreak > 0) {
+    var streakTime = Math.round(longestInRangeStreak * 5 / 60); // Convert to hours
+    facts.push({
+      title: 'Longest Time in Range',
+      description: 'You stayed within your target range for ' + longestInRangeStreak + ' consecutive readings (' + streakTime + ' hours).'
+    });
+  }
+  
+  // Find longest streak out of range
+  var longestOutOfRangeStreak = findLongestStreak(data, targetLow, targetHigh, false);
+  if (longestOutOfRangeStreak > 0) {
+    var outStreakTime = Math.round(longestOutOfRangeStreak * 5 / 60); // Convert to hours
+    facts.push({
+      title: 'Longest Time Out of Range',
+      description: 'You were outside your target range for ' + longestOutOfRangeStreak + ' consecutive readings (' + outStreakTime + ' hours).'
+    });
+  }
+  
+  // Find highest and lowest readings
+  var sortedData = data.slice().sort(function(a, b) { return b.sgv - a.sgv; });
+  var highestReading = convertToUserUnits(sortedData[0].sgv, units);
+  var lowestReading = convertToUserUnits(sortedData[sortedData.length - 1].sgv, units);
+  
+  facts.push({
+    title: 'Glucose Range',
+    description: 'Your glucose ranged from ' + lowestReading + ' to ' + highestReading + ' ' + (units === 'mmol' ? 'mmol/L' : 'mg/dL') + ' during this period.'
+  });
+  
+  // Find most active day
+  var dailyCounts = {};
+  data.forEach(function(entry) {
+    var day = entry.date.getDay();
+    dailyCounts[day] = (dailyCounts[day] || 0) + 1;
+  });
+  
+  var mostActiveDay = Object.keys(dailyCounts).reduce(function(a, b) {
+    return dailyCounts[a] > dailyCounts[b] ? a : b;
+  });
+  
+  var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  facts.push({
+    title: 'Most Active Day',
+    description: dayNames[mostActiveDay] + ' had the most glucose readings with ' + dailyCounts[mostActiveDay] + ' measurements.'
+  });
+  
+  // Find time of day with most variability
+  var hourlyVariability = calculateHourlyVariability(data);
+  var mostVariableHour = Object.keys(hourlyVariability).reduce(function(a, b) {
+    return hourlyVariability[a] > hourlyVariability[b] ? a : b;
+  });
+  
+  facts.push({
+    title: 'Most Variable Time',
+    description: 'Hour ' + mostVariableHour + ':00 had the highest glucose variability with a standard deviation of ' + hourlyVariability[mostVariableHour].toFixed(1) + ' ' + (units === 'mmol' ? 'mmol/L' : 'mg/dL') + '.'
+  });
+  
+  // Calculate average readings per day
+  var avgReadingsPerDay = Math.round(stats.total / 7);
+  facts.push({
+    title: 'Data Coverage',
+    description: 'You averaged ' + avgReadingsPerDay + ' glucose readings per day, providing good coverage for analysis.'
+  });
+  
+  // Find if there are any unusual patterns
+  var unusualPatterns = findUnusualPatterns(data, targetLow, targetHigh);
+  if (unusualPatterns.length > 0) {
+    unusualPatterns.forEach(function(pattern) {
+      facts.push(pattern);
+    });
+  }
+  
+  return facts;
+}
+
+function findLongestStreak(data, targetLow, targetHigh, inRange) {
+  var sortedData = data.slice().sort(function(a, b) { return a.mills - b.mills; });
+  var units = getUserUnits();
+  var currentStreak = 0;
+  var maxStreak = 0;
+  
+  sortedData.forEach(function(entry) {
+    var convertedValue = units === 'mmol' ? entry.sgv / 18 : entry.sgv;
+    var isInRange = convertedValue >= targetLow && convertedValue < targetHigh;
+    
+    if (isInRange === inRange) {
+      currentStreak++;
+      maxStreak = Math.max(maxStreak, currentStreak);
+    } else {
+      currentStreak = 0;
+    }
+  });
+  
+  return maxStreak;
+}
+
+function calculateHourlyVariability(data) {
+  var hourlyData = {};
+  var units = getUserUnits();
+  
+  // Group data by hour
+  for (var i = 0; i < 24; i++) {
+    hourlyData[i] = [];
+  }
+  
+  data.forEach(function(entry) {
+    var hour = entry.date.getHours();
+    var convertedValue = units === 'mmol' ? entry.sgv / 18 : entry.sgv;
+    hourlyData[hour].push(convertedValue);
+  });
+  
+  // Calculate standard deviation for each hour
+  var hourlyVariability = {};
+  for (var hour = 0; hour < 24; hour++) {
+    if (hourlyData[hour].length > 1) {
+      var values = hourlyData[hour];
+      var mean = values.reduce(function(a, b) { return a + b; }, 0) / values.length;
+      var variance = values.reduce(function(acc, val) {
+        return acc + Math.pow(val - mean, 2);
+      }, 0) / values.length;
+      hourlyVariability[hour] = Math.sqrt(variance);
+    } else {
+      hourlyVariability[hour] = 0;
+    }
+  }
+  
+  return hourlyVariability;
+}
+
+function findUnusualPatterns(data, targetLow, targetHigh) {
+  var patterns = [];
+  var units = getUserUnits();
+  
+  // Check for rapid changes
+  var sortedData = data.slice().sort(function(a, b) { return a.mills - b.mills; });
+  var rapidChanges = 0;
+  
+  for (var i = 1; i < sortedData.length; i++) {
+    var timeDiff = (sortedData[i].mills - sortedData[i-1].mills) / (1000 * 60); // minutes
+    if (timeDiff <= 10) { // Only check consecutive readings within 10 minutes
+      var change = Math.abs(sortedData[i].sgv - sortedData[i-1].sgv);
+      var changeRate = change / timeDiff;
+      
+      if (changeRate > 3) { // More than 3 mg/dL per minute or equivalent
+        rapidChanges++;
+      }
+    }
+  }
+  
+  if (rapidChanges > 0) {
+    patterns.push({
+      title: 'Rapid Glucose Changes',
+      description: 'You experienced ' + rapidChanges + ' rapid glucose changes (>3 ' + (units === 'mmol' ? 'mmol/L' : 'mg/dL') + '/min), which may indicate insulin sensitivity or meal timing issues.'
+    });
+  }
+  
+  return patterns;
+}
+
+function updateFacts(facts) {
+  var container = $('#factsList');
+  container.empty();
+  
+  if (facts.length === 0) {
+    container.append('<p style="color: #666; font-style: italic;">No interesting patterns detected in this period.</p>');
+    return;
+  }
+  
+  facts.forEach(function(fact) {
+    var item = $('<div class="fact-item"></div>');
+    item.append('<div class="fact-title">' + fact.title + '</div>');
+    item.append('<div class="fact-description">' + fact.description + '</div>');
+    container.append(item);
+  });
+} 
