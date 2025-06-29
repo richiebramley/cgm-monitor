@@ -724,47 +724,106 @@ function createHourlyChart(data, targetLow, targetHigh) {
   // Group data by hour
   var hourlyAverages = {};
   var hourlyCounts = {};
+  var hourlyHighCounts = {};
+  var hourlyLowCounts = {};
   
   for (var i = 0; i < 24; i++) {
     hourlyAverages[i] = 0;
     hourlyCounts[i] = 0;
+    hourlyHighCounts[i] = 0;
+    hourlyLowCounts[i] = 0;
   }
   
   data.forEach(function(entry) {
     var hour = entry.date.getHours();
     hourlyAverages[hour] += entry.sgv;
     hourlyCounts[hour]++;
+    
+    // Convert to user's preferred units for comparison
+    var convertedValue = units === 'mmol' ? entry.sgv / 18 : entry.sgv;
+    
+    // Count high and low readings
+    if (convertedValue >= targetHigh) {
+      hourlyHighCounts[hour]++;
+    } else if (convertedValue < targetLow) {
+      hourlyLowCounts[hour]++;
+    }
   });
   
-  // Calculate averages
+  // Calculate averages and prepare chart data
   var chartData = [];
   for (var i = 0; i < 24; i++) {
     if (hourlyCounts[i] > 0) {
       chartData.push({
         hour: i,
         average: hourlyAverages[i] / hourlyCounts[i],
-        count: hourlyCounts[i]
+        count: hourlyCounts[i],
+        highCount: hourlyHighCounts[i],
+        lowCount: hourlyLowCounts[i]
       });
     }
   }
+  
+  // Find the 3 hours with the most high readings
+  var highReadingHours = chartData.slice().sort(function(a, b) {
+    return b.highCount - a.highCount;
+  }).slice(0, 3).map(function(item) { return item.hour; });
+  
+  // Find the 3 hours with the most low readings
+  var lowReadingHours = chartData.slice().sort(function(a, b) {
+    return b.lowCount - a.lowCount;
+  }).slice(0, 3).map(function(item) { return item.hour; });
+  
+  console.log('Hours with most high readings:', highReadingHours);
+  console.log('Hours with most low readings:', lowReadingHours);
   
   // Simple chart using HTML/CSS
   var container = $('#hourlyChart');
   container.empty();
   
   var table = $('<table style="width: 100%; border-collapse: collapse;"></table>');
-  var header = $('<tr><th style="padding: 8px; border: 1px solid #ddd;">Hour</th><th style="padding: 8px; border: 1px solid #ddd;">Average</th><th style="padding: 8px; border: 1px solid #ddd;">Readings</th></tr>');
+  var header = $('<tr><th style="padding: 8px; border: 1px solid #ddd;">Hour</th><th style="padding: 8px; border: 1px solid #ddd;">Average</th><th style="padding: 8px; border: 1px solid #ddd;">Readings</th><th style="padding: 8px; border: 1px solid #ddd;">High</th><th style="padding: 8px; border: 1px solid #ddd;">Low</th></tr>');
   table.append(header);
   
   chartData.forEach(function(hour) {
     var row = $('<tr></tr>');
+    
+    // Determine row highlighting
+    var isHighHighlight = highReadingHours.includes(hour.hour);
+    var isLowHighlight = lowReadingHours.includes(hour.hour);
+    
+    var rowStyle = '';
+    if (isHighHighlight && isLowHighlight) {
+      // Both high and low - use a special color
+      rowStyle = 'background-color: #ffeb3b; font-weight: bold;';
+    } else if (isHighHighlight) {
+      // High readings - use red background
+      rowStyle = 'background-color: #ffcdd2; font-weight: bold;';
+    } else if (isLowHighlight) {
+      // Low readings - use blue background
+      rowStyle = 'background-color: #bbdefb; font-weight: bold;';
+    }
+    
+    if (rowStyle) {
+      row.attr('style', rowStyle);
+    }
+    
     row.append('<td style="padding: 8px; border: 1px solid #ddd;">' + hour.hour + ':00</td>');
     row.append('<td style="padding: 8px; border: 1px solid #ddd;">' + convertToUserUnits(hour.average, units) + '</td>');
     row.append('<td style="padding: 8px; border: 1px solid #ddd;">' + hour.count + '</td>');
+    row.append('<td style="padding: 8px; border: 1px solid #ddd;">' + hour.highCount + '</td>');
+    row.append('<td style="padding: 8px; border: 1px solid #ddd;">' + hour.lowCount + '</td>');
     table.append(row);
   });
   
   container.append(table);
+  
+  // Add legend
+  var legend = $('<div style="margin-top: 15px; font-size: 0.9em; color: #666;"></div>');
+  legend.append('<div style="margin-bottom: 5px;"><span style="background-color: #ffcdd2; padding: 2px 6px; margin-right: 5px;">■</span> Top 3 hours with most high readings</div>');
+  legend.append('<div style="margin-bottom: 5px;"><span style="background-color: #bbdefb; padding: 2px 6px; margin-right: 5px;">■</span> Top 3 hours with most low readings</div>');
+  legend.append('<div><span style="background-color: #ffeb3b; padding: 2px 6px; margin-right: 5px;">■</span> Hours with both high and low readings</div>');
+  container.append(legend);
 }
 
 function createWeeklyGraph(data, targetLow, targetHigh) {
