@@ -1129,23 +1129,27 @@ function generateFacts(data, stats, targetLow, targetHigh) {
   var facts = [];
   var units = getUserUnits();
   
-  // Find longest streak in range
-  var longestInRangeStreak = findLongestStreak(data, targetLow, targetHigh, true);
-  if (longestInRangeStreak > 0) {
-    var streakTime = Math.round(longestInRangeStreak * 5 / 60); // Convert to hours
+  // Find longest streak in range with start/end times
+  var longestInRangeStreak = findLongestStreakWithTimes(data, targetLow, targetHigh, true);
+  if (longestInRangeStreak.count > 0) {
+    var streakTime = Math.round(longestInRangeStreak.count * 5 / 60); // Convert to hours
+    var startTime = longestInRangeStreak.start.toLocaleString();
+    var endTime = longestInRangeStreak.end.toLocaleString();
     facts.push({
       title: 'Longest Time in Range',
-      description: 'You stayed within your target range for ' + longestInRangeStreak + ' consecutive readings (' + streakTime + ' hours).'
+      description: 'You stayed within your target range for ' + longestInRangeStreak.count + ' consecutive readings (' + streakTime + ' hours) from ' + startTime + ' to ' + endTime + '.'
     });
   }
   
-  // Find longest streak out of range
-  var longestOutOfRangeStreak = findLongestStreak(data, targetLow, targetHigh, false);
-  if (longestOutOfRangeStreak > 0) {
-    var outStreakTime = Math.round(longestOutOfRangeStreak * 5 / 60); // Convert to hours
+  // Find longest streak out of range with start/end times
+  var longestOutOfRangeStreak = findLongestStreakWithTimes(data, targetLow, targetHigh, false);
+  if (longestOutOfRangeStreak.count > 0) {
+    var outStreakTime = Math.round(longestOutOfRangeStreak.count * 5 / 60); // Convert to hours
+    var startTime = longestOutOfRangeStreak.start.toLocaleString();
+    var endTime = longestOutOfRangeStreak.end.toLocaleString();
     facts.push({
       title: 'Longest Time Out of Range',
-      description: 'You were outside your target range for ' + longestOutOfRangeStreak + ' consecutive readings (' + outStreakTime + ' hours).'
+      description: 'You were outside your target range for ' + longestOutOfRangeStreak.count + ' consecutive readings (' + outStreakTime + ' hours) from ' + startTime + ' to ' + endTime + '.'
     });
   }
   
@@ -1176,10 +1180,14 @@ function generateFacts(data, stats, targetLow, targetHigh) {
     description: dayNames[mostActiveDay] + ' had the most glucose readings with ' + dailyCounts[mostActiveDay] + ' measurements.'
   });
   
-  // Find time of day with most variability
+  // Find time of day with most and least variability
   var hourlyVariability = calculateHourlyVariability(data);
   var mostVariableHour = Object.keys(hourlyVariability).reduce(function(a, b) {
     return hourlyVariability[a] > hourlyVariability[b] ? a : b;
+  });
+  
+  var leastVariableHour = Object.keys(hourlyVariability).reduce(function(a, b) {
+    return hourlyVariability[a] < hourlyVariability[b] ? a : b;
   });
   
   facts.push({
@@ -1187,11 +1195,29 @@ function generateFacts(data, stats, targetLow, targetHigh) {
     description: 'Hour ' + mostVariableHour + ':00 had the highest glucose variability with a standard deviation of ' + hourlyVariability[mostVariableHour].toFixed(1) + ' ' + (units === 'mmol' ? 'mmol/L' : 'mg/dL') + '.'
   });
   
-  // Calculate average readings per day
-  var avgReadingsPerDay = Math.round(stats.total / 7);
   facts.push({
-    title: 'Data Coverage',
-    description: 'You averaged ' + avgReadingsPerDay + ' glucose readings per day, providing good coverage for analysis.'
+    title: 'Least Variable Time',
+    description: 'Hour ' + leastVariableHour + ':00 had the lowest glucose variability with a standard deviation of ' + hourlyVariability[leastVariableHour].toFixed(1) + ' ' + (units === 'mmol' ? 'mmol/L' : 'mg/dL') + '.'
+  });
+  
+  // Find most and least variable days
+  var dailyVariability = calculateDailyVariability(data);
+  var mostVariableDay = Object.keys(dailyVariability).reduce(function(a, b) {
+    return dailyVariability[a] > dailyVariability[b] ? a : b;
+  });
+  
+  var leastVariableDay = Object.keys(dailyVariability).reduce(function(a, b) {
+    return dailyVariability[a] < dailyVariability[b] ? a : b;
+  });
+  
+  facts.push({
+    title: 'Most Variable Day',
+    description: dayNames[mostVariableDay] + ' had the highest glucose variability with a standard deviation of ' + dailyVariability[mostVariableDay].toFixed(1) + ' ' + (units === 'mmol' ? 'mmol/L' : 'mg/dL') + '.'
+  });
+  
+  facts.push({
+    title: 'Least Variable Day',
+    description: dayNames[leastVariableDay] + ' had the lowest glucose variability with a standard deviation of ' + dailyVariability[leastVariableDay].toFixed(1) + ' ' + (units === 'mmol' ? 'mmol/L' : 'mg/dL') + '.'
   });
   
   // Find if there are any unusual patterns
@@ -1205,11 +1231,13 @@ function generateFacts(data, stats, targetLow, targetHigh) {
   return facts;
 }
 
-function findLongestStreak(data, targetLow, targetHigh, inRange) {
+function findLongestStreakWithTimes(data, targetLow, targetHigh, inRange) {
   var sortedData = data.slice().sort(function(a, b) { return a.mills - b.mills; });
   var units = getUserUnits();
   var currentStreak = 0;
   var maxStreak = 0;
+  var start = null;
+  var end = null;
   
   sortedData.forEach(function(entry) {
     var convertedValue = units === 'mmol' ? entry.sgv / 18 : entry.sgv;
@@ -1218,12 +1246,20 @@ function findLongestStreak(data, targetLow, targetHigh, inRange) {
     if (isInRange === inRange) {
       currentStreak++;
       maxStreak = Math.max(maxStreak, currentStreak);
+      if (start === null) {
+        start = new Date(entry.date);
+      }
+      end = new Date(entry.date);
     } else {
       currentStreak = 0;
     }
   });
   
-  return maxStreak;
+  return {
+    count: maxStreak,
+    start: start,
+    end: end
+  };
 }
 
 function calculateHourlyVariability(data) {
@@ -1257,6 +1293,39 @@ function calculateHourlyVariability(data) {
   }
   
   return hourlyVariability;
+}
+
+function calculateDailyVariability(data) {
+  var dailyData = {};
+  var units = getUserUnits();
+  
+  // Group data by day of week
+  for (var i = 0; i < 7; i++) {
+    dailyData[i] = [];
+  }
+  
+  data.forEach(function(entry) {
+    var day = entry.date.getDay();
+    var convertedValue = units === 'mmol' ? entry.sgv / 18 : entry.sgv;
+    dailyData[day].push(convertedValue);
+  });
+  
+  // Calculate standard deviation for each day
+  var dailyVariability = {};
+  for (var day = 0; day < 7; day++) {
+    if (dailyData[day].length > 1) {
+      var values = dailyData[day];
+      var mean = values.reduce(function(a, b) { return a + b; }, 0) / values.length;
+      var variance = values.reduce(function(acc, val) {
+        return acc + Math.pow(val - mean, 2);
+      }, 0) / values.length;
+      dailyVariability[day] = Math.sqrt(variance);
+    } else {
+      dailyVariability[day] = 0;
+    }
+  }
+  
+  return dailyVariability;
 }
 
 function findUnusualPatterns(data, targetLow, targetHigh) {
