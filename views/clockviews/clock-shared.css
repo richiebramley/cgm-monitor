@@ -27,8 +27,8 @@ main {
 }
 
 #inner div {
-  margin-right: 3vmin; /* slightly increase spacing */
-  margin-left: 3vmin;
+  margin-right: 1vmin; /* reduce spacing */
+  margin-left: 1vmin;
   line-height: 1em;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
@@ -47,34 +47,34 @@ main {
   font-weight: bold;
   color: #ffffff;
   text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.9);
-  font-size: 28vw; /* was 18vw */
-  line-height: 1.1;
+  font-size: 38vw; /* was 28vw */
+  line-height: 1.05;
 }
 
 #inner div.dt {
   color: #e6f3ff;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-  font-size: 8vw; /* new: make delta much larger */
+  font-size: 12vw; /* was 8vw */
   font-weight: bold;
 }
 
 #inner div.ag {
   color: #f0f0f0;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-  font-size: 7vw; /* new: make age much larger */
+  font-size: 12vw; /* was 7vw */
   font-weight: bold;
 }
 
 #inner div.tm {
   color: #ffffff;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-  font-size: 7vw; /* new: make time much larger */
+  font-size: 12vw; /* was 7vw */
   font-weight: bold;
 }
 
 #inner div.ar img, #inner div.ar {
-  height: 10vw !important; /* new: make arrow much larger */
-  max-height: 12vw;
+  height: 16vw !important; /* was 10vw */
+  max-height: 18vw;
   width: auto;
   display: inline-block;
 }
