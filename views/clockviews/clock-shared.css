@@ -27,8 +27,8 @@ main {
 }
 
 #inner div {
-  margin-right: 2vmin;
-  margin-left: 2vmin;
+  margin-right: 3vmin; /* slightly increase spacing */
+  margin-left: 3vmin;
   line-height: 1em;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
@@ -47,23 +47,36 @@ main {
   font-weight: bold;
   color: #ffffff;
   text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.9);
-  font-size: 18vw;
+  font-size: 28vw; /* was 18vw */
   line-height: 1.1;
 }
 
 #inner div.dt {
   color: #e6f3ff;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  font-size: 8vw; /* new: make delta much larger */
+  font-weight: bold;
 }
 
 #inner div.ag {
   color: #f0f0f0;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  font-size: 7vw; /* new: make age much larger */
+  font-weight: bold;
 }
 
 #inner div.tm {
   color: #ffffff;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  font-size: 7vw; /* new: make time much larger */
+  font-weight: bold;
+}
+
+#inner div.ar img, #inner div.ar {
+  height: 10vw !important; /* new: make arrow much larger */
+  max-height: 12vw;
+  width: auto;
+  display: inline-block;
 }
 
 #errorMessage {
