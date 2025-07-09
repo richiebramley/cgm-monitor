@@ -111,6 +111,11 @@
       document.body.attachEvent('ononline', uOnline);
     }
 
+    // Auto-refresh the page every 5 minutes to ensure fresh data
+    setTimeout(function() {
+      location.reload();
+    }, 300000); // 5 minutes = 300,000 milliseconds
+
     <% } %>
   </script>
   <%if (face == 'config') { %>
