@@ -1,0 +1,34 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "node server.js"
+healthcheckPath = "/api/status"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+
+[env]
+# Required environment variables for Nightscout
+# Set these in your Railway project settings
+
+# Database Configuration (Required)
+# MONGODB_URI = "mongodb://username:password@host:port/database"
+# Alternative names that also work:
+# - STORAGE_URI
+# - MONGO_CONNECTION  
+# - MONGO
+# - MONGOLAB_URI
+
+# API Security (Required)
+# API_SECRET = "your-secure-api-secret-here-minimum-12-characters"
+
+# Optional Configuration
+# PORT = 1337  # Railway will set this automatically
+# HOSTNAME = "0.0.0.0"  # Railway will set this automatically
+
+# Security Settings (Recommended)
+# INSECURE_USE_HTTP = "false"
+# SECURE_HSTS_HEADER = "true"
+
+# Display Settings
+# DISPLAY_UNITS = "mg/dl"  # or "mmol"
